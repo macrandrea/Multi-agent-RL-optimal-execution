@@ -1,6 +1,6 @@
 '''
-by Andrea Macrì
-last update 18/03/2023
+by Andrea Macri
+last update 18_03_2023
 '''
 
 import numpy as np

@@ -40,6 +40,7 @@ MAX_P = 10.03 #prezzo massimo
 LR = 0.0001 # learning rate
 BATCH = 64 # batch size
 NUM_AGE = 2 # numero di agenti
+TRAIN_i_o = True # se True allora si allena, se False si testa
 seed = 10002197
 np.random.seed(seed)
 torch.manual_seed(seed)
@@ -182,8 +183,12 @@ class Agente():
         self.maxlen = 15_000
         self.memory = ReplayMemory(self.maxlen)   
         self.env = Ambiente()
-        self.main_net = DQN(in_size=in_features, hidden_layers_size=30)
-        self.target_net = DQN(in_size=in_features, hidden_layers_size=30)
+        if TRAIN_i_o == True:
+            self.main_net   = DQN(in_size=in_features, hidden_layers_size=30)
+            self.target_net = DQN(in_size=in_features, hidden_layers_size=30)
+        else:
+            self.main_net   = torch.load('C:/Users/macri/Desktop/ennesima/model_qts_multi_1_2024-03-21_19-10-52.pth')
+            self.target_net = torch.load('C:/Users/macri/Desktop/ennesima/model_qts_multi_1_2024-03-21_19-10-52.pth')
 
         for p in self.target_net.parameters():
             p.requires_grad = False
@@ -524,22 +529,33 @@ if __name__ == '__main__':
 
         return (INV * PASSI)-np.asarray(a)#*100
 
-    def run(n, test = False):
+    def run(n, train = True, test = False):
 
         numIt = n
         numTr = int(numIt * 0.5)
         age = [Agente(inventario = INV, numTrain = numIt) for _ in range(NUM_AGE)]
-        
-        act_mean, act_sd, act_hist, loss_mean, loss_sd, rew_mean, rew_sd, loss_hist, rew_hist, state, epsilon = doTrain(age, numIt)
+        epsilon = 0
+
+        if train == TRAIN_i_o:
+            act_mean, act_sd, act_hist, loss_mean, loss_sd, rew_mean, rew_sd, loss_hist, rew_hist, state, epsilon = doTrain(age, numIt)
+
+            np.savez('./Desktop/ennesima/azioniTrain', act_hist) 
+
+            np.savez('./Desktop/ennesima/stati_train', state)
+
+            torch.save(age[0].main_net, f'C:/Users/macri/Desktop/ennesima/model_qts_multi_1_{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.pth')
+            torch.save(age[1].main_net, f'C:/Users/macri/Desktop/ennesima/model_qts_multi_2_{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.pth')
 
         if test == True:
 
             pel, sdPeL, azioni, azioni_med, sdaz, ricompensa, sdRic, re, tr, states, dat = doTest(age, numTr)
 
             np.savez('./Desktop/ennesima/azioni', azioni_med) 
-            np.savez('./Desktop/ennesima/azioniTrain', act_hist) 
+
+            np.savez('./Desktop/ennesima/dat', dat) 
+
             np.savez('./Desktop/ennesima/stati', states) 
-            np.savez('./Desktop/ennesima/stati_train', state)
+            
             np.savez('./Desktop/ennesima/trans', tr)
 
             np.savez('./Desktop/ennesima/re', re)
@@ -553,24 +569,24 @@ if __name__ == '__main__':
             print('average PandL pct. =', 0, ', PandL sd = ', 0 ,
             '\n',', med_act  =' , azioni[-PASSI:] ,', act sd = ', sdaz ,
             '\n', ', rew ave =', ricompensa, ', rew sd =', sdRic,
-            '\n', ', rew_train =', rew_mean, ', rew sd_train =', rew_sd,
-            '\n',', average action chosen from train =', act_mean, 
+#            '\n',', average action chosen from train =', act_mean, 
             '\n', ', ave act test =', azioni_med, ', sd test act =', sdaz,
             '\n', ', IS_QL =',0,
             '\n', ', IS_AC =',0,
             '\n', ', epsilon', epsilon,
             '\n', "--- %s minutes ---" % ((time.time() - start_time)    /   60))
 
-            sns.heatmap(np.asarray(state), cmap="YlGnBu" )
-            plt.title('states explored in train')
-            plt.savefig('./Desktop/ennesima/statiTrain')
-            plt.close() # train state
+            #sns.heatmap(np.asarray(state), cmap="YlGnBu" )
+            #plt.title('states explored in train')
+            #plt.savefig('./Desktop/ennesima/statiTrain')
+            #plt.close() # train state
 
             #plt.plot(np.asarray(re))
             #plt.ylabel('rewards')
             #plt.xlabel('iterations')
             #plt.savefig('./Desktop/ennesima/rewards')
             #plt.close()
+
             return azioni, azioni_med, sdaz, ricompensa, sdRic, re, tr, states, ql_IS, ql_TW, dat
 
         if test == False:
@@ -593,8 +609,7 @@ if __name__ == '__main__':
             sns.heatmap(np.asarray(state))
             plt.show()
 
-        torch.save(age[0].main_net, f'model_qts_multi_1_{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.pth')
-        torch.save(age[1].main_net, f'model_qts_multi_2_{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.pth')
+
 
 
     start_time = time.time()

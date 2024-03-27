@@ -38,12 +38,12 @@ NUMIT = 10_000 # traiettorie di train, quelle di test sono sempre la meta', il n
 MIN_P = 9.97  #prezzo minimo
 MAX_P = 10.03 #prezzo massimo
 LR = 0.0001 # learning rate
-BATCH = 64 # batch size
+BATCH = 32 # batch size
 NUM_AGE = 2 # numero di agenti
-TRAIN_i_o = True # se True allora si allena, se False si testa
+TRAIN_i_o = False # se True allora si allena, se False si testa
 seed = 10002197
-np.random.seed(seed)
-torch.manual_seed(seed)
+#np.random.seed(seed)
+#torch.manual_seed(seed)
 
 class DQN(nn.Module):
     '''
@@ -177,18 +177,25 @@ class ReplayMemory():
 
 class Agente():
 
-    def __init__(self, inventario, numTrain):
+    def __init__(self, inventario, numTrain, age = 0):
 
         self.train = numTrain
         self.maxlen = 15_000
         self.memory = ReplayMemory(self.maxlen)   
         self.env = Ambiente()
+        self.main_net   = DQN(in_size=in_features, hidden_layers_size=30)
+        self.target_net = DQN(in_size=in_features, hidden_layers_size=30)
+
         if TRAIN_i_o == True:
-            self.main_net   = DQN(in_size=in_features, hidden_layers_size=30)
-            self.target_net = DQN(in_size=in_features, hidden_layers_size=30)
+            self.epsilon = 1
         else:
-            self.main_net   = torch.load('C:/Users/macri/Desktop/ennesima/model_qts_multi_1_2024-03-21_19-10-52.pth')
-            self.target_net = torch.load('C:/Users/macri/Desktop/ennesima/model_qts_multi_1_2024-03-21_19-10-52.pth')
+            self.epsilon = .05
+            if age == 0:
+                self.main_net.load_state_dict(torch.load('C:/Users/macri/Desktop/ennesima/train_10_batch_64/model_qts_multi_1_2024-03-22_22-29-03.pth'))
+            else :
+                self.main_net.load_state_dict(torch.load('C:/Users/macri/Desktop/ennesima/train_10_batch_64/model_qts_multi_2_2024-03-22_22-29-03.pth'))
+
+            self.target_net.load_state_dict(torch.load('C:/Users/macri/Desktop/ennesima/train_10_batch_64/model_qts_multi_1_2024-03-22_22-29-03.pth'))
 
         for p in self.target_net.parameters():
             p.requires_grad = False
@@ -200,7 +207,7 @@ class Agente():
         self.time_subdivisions = PASSI
         self.inventory = inventario
         self.a_penalty = TEMP_IMP
-        self.epsilon = 1
+        #self.epsilon = 1
         self.epsilon_decay = 0.995
         self.batch_size = BATCH
         self.gamma = 1
@@ -533,7 +540,7 @@ if __name__ == '__main__':
 
         numIt = n
         numTr = int(numIt * 0.5)
-        age = [Agente(inventario = INV, numTrain = numIt) for _ in range(NUM_AGE)]
+        age = [Agente(inventario = INV, numTrain = numIt, age = _) for _ in range(NUM_AGE)]
         epsilon = 0
 
         if train == TRAIN_i_o:
@@ -543,14 +550,16 @@ if __name__ == '__main__':
 
             np.savez('./Desktop/ennesima/stati_train', state)
 
-            torch.save(age[0].main_net, f'C:/Users/macri/Desktop/ennesima/model_qts_multi_1_{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.pth')
-            torch.save(age[1].main_net, f'C:/Users/macri/Desktop/ennesima/model_qts_multi_2_{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.pth')
+            torch.save(age[0].main_net.state_dict(), f'C:/Users/macri/Desktop/ennesima/model_qts_multi_1_{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.pth')
+            torch.save(age[1].main_net.state_dict(), f'C:/Users/macri/Desktop/ennesima/model_qts_multi_2_{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.pth')
 
         if test == True:
 
             pel, sdPeL, azioni, azioni_med, sdaz, ricompensa, sdRic, re, tr, states, dat = doTest(age, numTr)
 
             np.savez('./Desktop/ennesima/azioni', azioni_med) 
+
+            np.savez('./Desktop/ennesima/azioni_hist', azioni)
 
             np.savez('./Desktop/ennesima/dat', dat) 
 
@@ -569,23 +578,11 @@ if __name__ == '__main__':
             print('average PandL pct. =', 0, ', PandL sd = ', 0 ,
             '\n',', med_act  =' , azioni[-PASSI:] ,', act sd = ', sdaz ,
             '\n', ', rew ave =', ricompensa, ', rew sd =', sdRic,
-#            '\n',', average action chosen from train =', act_mean, 
             '\n', ', ave act test =', azioni_med, ', sd test act =', sdaz,
             '\n', ', IS_QL =',0,
             '\n', ', IS_AC =',0,
             '\n', ', epsilon', epsilon,
             '\n', "--- %s minutes ---" % ((time.time() - start_time)    /   60))
-
-            #sns.heatmap(np.asarray(state), cmap="YlGnBu" )
-            #plt.title('states explored in train')
-            #plt.savefig('./Desktop/ennesima/statiTrain')
-            #plt.close() # train state
-
-            #plt.plot(np.asarray(re))
-            #plt.ylabel('rewards')
-            #plt.xlabel('iterations')
-            #plt.savefig('./Desktop/ennesima/rewards')
-            #plt.close()
 
             return azioni, azioni_med, sdaz, ricompensa, sdRic, re, tr, states, ql_IS, ql_TW, dat
 
@@ -609,19 +606,19 @@ if __name__ == '__main__':
             sns.heatmap(np.asarray(state))
             plt.show()
 
-
-
-
     start_time = time.time()
     azioni_tot = []
     dati_tot = []
     ql_tot = []
     ac_tot = []
     re_tot = []
-
-    for _ in tqdm(range(1)):
-        #np.random.seed(0)
+    n = 10
+    if TRAIN_i_o == True:
+        n = 1 
+    for _ in tqdm(range(n)):
+        #np.random.seed(_)
         azioni, azioni_med, sdaz, ricompensa, sdRic, re, tr, states, ql_IS, ql_TW, dati = run(n = NUMIT, test = True)
+        np.savez(f'./Desktop/ennesima/azioni{_}', azioni_med) 
         azioni_tot.append(azioni_med)
         dati_tot.append(dati)
         re_tot.append(re)

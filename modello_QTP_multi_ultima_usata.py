@@ -30,17 +30,17 @@ in_features = 4
 
 PERM_IMP = 0.001 #permament impact
 TEMP_IMP = 0.002 #temporary impact
-VOLA = 0.00001 # volatilità
+VOLA = 0.01 # volatilità
 INV = 100 # inventario
 PASSI = 10 #discretizzazione
 STEP = 100 # abbassa la epsilon ogni 100 azioni compiute
 NUMIT = 10_000 # traiettorie di train, quelle di test sono sempre la meta', il numero totale delle azioni compiute in train sarà NUMIT x PASSI
-MIN_P = 9.97  #prezzo minimo
-MAX_P = 10.03 #prezzo massimo
-LR = 0.0001 # learning rate
+MIN_P = 9.8  #prezzo minimo
+MAX_P = 10.2 #prezzo massimo
+LR = 0.01 # learning rate
 BATCH = 32 # batch size
 NUM_AGE = 2 # numero di agenti
-UNC = False # True se si vuole fare l'esplorazione con la distribuzione normale, False se si vuole fare l'esplorazione con la distribuzione binomiale
+UNC = True # True se si vuole fare l'esplorazione con la distribuzione normale, False se si vuole fare l'esplorazione con la distribuzione binomiale
 seed = 10002197
 np.random.seed(seed)
 torch.manual_seed(seed)
@@ -189,7 +189,9 @@ class Agente():
         self._update_target_net()
 
         self.learning_rate = LR
-        self.optimizer = optim.Adam(params=self.main_net.parameters(), lr=self.learning_rate)
+        self.optimizer = optim.AdamW(params=self.main_net.parameters(), lr=self.learning_rate)
+        self.scheduler = torch.optim.lr_scheduler.ExponentialLR(self.optimizer, gamma = 0.999)
+
         self.time_subdivisions = PASSI
         self.inventory = inventario
         self.a_penalty = TEMP_IMP
@@ -272,10 +274,12 @@ class Agente():
             
                 action = self.q_action(state, min_p, max_p)         
             a = state[0] - action
+
             if a > INV:
                 action = 0 
             elif  a < 0:   
-                action = 0          
+                action = 0  
+
             return action
        
        elif UNC == False:
@@ -342,8 +346,10 @@ class Agente():
 
             grad_norm = total_norm ** 0.5
 
+        entropy = torch.mean(-torch.sum(F.softmax(current_Q, dim=1) * F.log_softmax(current_Q, dim=1), dim=1))
+
         target = torch.tensor(target, dtype=torch.float32).reshape(-1,1)
-        loss = F.mse_loss(target, current_Q)
+        loss = F.mse_loss(target, current_Q) - entropy
 
         self.optimizer.zero_grad()
         loss.backward()
@@ -434,10 +440,12 @@ if __name__ == '__main__':
         inv       = np.zeros((NUM_AGE, PASSI+1, numIt))  
         inv[:,0] = INV
         aact = []
+
         for j in tqdm(range(numIt)):
+
             slices = PASSI
             tempo = 0
-            s_0 = 10 #np.random.uniform(9.5,10.5)#
+            s_0 = 10#np.random.uniform(9.5,10.5)#10 #
             action = 0
 
             for i in range(slices):
@@ -448,6 +456,9 @@ if __name__ == '__main__':
 
                     loss, grad, state, epsilon, new_inv, action, reward = age[agent_index].step(inv[agent_index][i][j], tempo, dati, p_min, p_max)
                     inv[agent_index][i+1][j] = new_inv
+
+                    if (j+1) % 25 ==0:
+                        age[agent_index].scheduler.step()
 
                     # Store outputs in nested dictionaries
                     rew_hist [agent_index][i][j] = reward
@@ -466,9 +477,10 @@ if __name__ == '__main__':
 
         np.savez('./Desktop/ennesima/loss', np.asarray(loss_hist))
 
-        return ( act_mean, act_sd, act_hist, loss_mean, loss_sd, rew_mean, rew_sd, loss_hist, rew_hist, state, epsilon)
+        return act_mean, act_sd, act_hist, loss_mean, loss_sd, rew_mean, rew_sd, loss_hist, rew_hist, state, epsilon
     
     def doTest(age, numIt = 100):
+
         act = []
         re = []
         transaction_cost_balance = []
@@ -483,7 +495,9 @@ if __name__ == '__main__':
         inv      = np.zeros((NUM_AGE, PASSI+1, numIt))
         inv[:,0] = INV
         aact = []
+
         for j in tqdm(range(numIt)):
+
             slices = PASSI
             tempo = 0
             s_0 = 10#np.random.uniform(9,11)#
@@ -513,7 +527,7 @@ if __name__ == '__main__':
 
         np.savez('./Desktop/ennesima/dati', dat) 
         
-        return mean_list, std_list, act, act_hist,0, 0, 0 , rew_hist, transaction_cost_balance, states, dat
+        return mean_list, std_list, act, act_hist, 0, 0, 0, rew_hist, transaction_cost_balance, states, dat
     
     def impl_IS():
         azioni = np.load('C:/Users/macri/Desktop/ennesima/azioni.npy')
@@ -579,19 +593,13 @@ if __name__ == '__main__':
             plt.savefig('./Desktop/ennesima/statiTrain')
             plt.close() # train state
 
-            #plt.plot(np.asarray(re))
-            #plt.ylabel('rewards')
-            #plt.xlabel('iterations')
-            #plt.savefig('./Desktop/ennesima/rewards')
-            #plt.close()
-
-
             torch.save(age[0].main_net.state_dict(), 'C:/Users/macri/Desktop/ennesima/model_qts_multi_1_10_volte.pth')
             torch.save(age[1].main_net.state_dict(), 'C:/Users/macri/Desktop/ennesima/model_qts_multi_2_10_volte.pth')
             
             return azioni, azioni_med, sdaz, ricompensa, sdRic, re, tr, states, ql_IS, ql_TW, dat
 
         if test == False:
+
             print('average action chosen from train =', act_mean, ',actions train sd = ', act_sd ,
             '\n',', reward train =' ,rew_mean ,',reward sd = ', rew_sd ,
             '\n', ',average loss from NN =', loss_mean, ',loss sd =', loss_sd,
@@ -621,7 +629,7 @@ if __name__ == '__main__':
     ac_tot = []
     re_tot = []
 
-    for _ in tqdm(range(10)):
+    for _ in tqdm(range(1)):
         azioni, azioni_med, sdaz, ricompensa, sdRic, re, tr, states, ql_IS, ql_TW, dati = run(n = NUMIT, test = True)
         azioni_tot.append(azioni_med)
         dati_tot.append(dati)

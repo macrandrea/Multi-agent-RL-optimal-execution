@@ -30,20 +30,20 @@ in_features = 4
 
 PERM_IMP = 0.001 #permament impact
 TEMP_IMP = 0.002 #temporary impact
-VOLA = 0.00001 # volatilità
+VOLA = 0.01#.00001 # volatilità
 INV = 100 # inventario
 PASSI = 10 #discretizzazione
 STEP = 100 # abbassa la epsilon ogni 100 azioni compiute
 NUMIT = 10_000 # traiettorie di train, quelle di test sono sempre la meta', il numero totale delle azioni compiute in train sarà NUMIT x PASSI
-MIN_P = 9.97  #prezzo minimo
-MAX_P = 10.03 #prezzo massimo
-LR = 0.0001 # learning rate
-BATCH = 32 # batch size
+MIN_P = 9.8  #prezzo minimo
+MAX_P = 10.2 #prezzo massimo
+LR = 0.001 # learning rate
+BATCH = 16 # batch size
 NUM_AGE = 2 # numero di agenti
-TRAIN_i_o = False # se True allora si allena, se False si testa
+TRAIN_i_o = True # se True allora si allena, se False si testa
 seed = 10002197
-#np.random.seed(seed)
-#torch.manual_seed(seed)
+#np.random.seed   (int(np.random.uniform(0, seed)))
+#torch.manual_seed(int(np.random.uniform(0, seed)))
 
 class DQN(nn.Module):
     '''
@@ -187,15 +187,22 @@ class Agente():
         self.target_net = DQN(in_size=in_features, hidden_layers_size=30)
 
         if TRAIN_i_o == True:
-            self.epsilon = 1
-        else:
-            self.epsilon = .05
-            if age == 0:
-                self.main_net.load_state_dict(torch.load('C:/Users/macri/Desktop/ennesima/train_10_batch_64/model_qts_multi_1_2024-03-22_22-29-03.pth'))
-            else :
-                self.main_net.load_state_dict(torch.load('C:/Users/macri/Desktop/ennesima/train_10_batch_64/model_qts_multi_2_2024-03-22_22-29-03.pth'))
 
-            self.target_net.load_state_dict(torch.load('C:/Users/macri/Desktop/ennesima/train_10_batch_64/model_qts_multi_1_2024-03-22_22-29-03.pth'))
+            self.epsilon = 1
+
+        else:
+
+            self.epsilon = .05
+
+            if age == 0:
+
+                self.main_net.load_state_dict(torch.load('C:/Users/macri/Desktop/ennesima/model_qts_multi_1_10_volte.pth'))
+
+            else :
+
+                self.main_net.load_state_dict(torch.load('C:/Users/macri/Desktop/ennesima/model_qts_multi_2_10_volte.pth'))
+
+            self.target_net.load_state_dict(torch.load('C:/Users/macri/Desktop/ennesima/model_qts_multi_1_10_volte.pth'))
 
         for p in self.target_net.parameters():
             p.requires_grad = False
@@ -341,8 +348,11 @@ class Agente():
 
             grad_norm = total_norm ** 0.5
 
+        entropy = torch.mean(-torch.sum(F.softmax(current_Q, dim=1) * F.log_softmax(current_Q, dim=1), dim=1))
+
         target = torch.tensor(target, dtype=torch.float32).reshape(-1,1)
-        loss = F.mse_loss(target, current_Q)
+        loss = F.mse_loss(target, current_Q) - entropy
+
 
         self.optimizer.zero_grad()
         loss.backward()
@@ -353,7 +363,7 @@ class Agente():
             self._update_target_net()
             self.epsilon = self.epsilon * self.epsilon_decay
         
-        torch.save(self.main_net.state_dict(), 'model.pth')
+        #torch.save(self.main_net.state_dict(), 'model.pth')
 
         return loss.cpu().item(), grad_norm, self.matrix, self.epsilon
 
@@ -612,10 +622,13 @@ if __name__ == '__main__':
     ql_tot = []
     ac_tot = []
     re_tot = []
-    n = 10
+
     if TRAIN_i_o == True:
         n = 1 
+    else: n = 1#0
+
     for _ in tqdm(range(n)):
+
         #np.random.seed(_)
         azioni, azioni_med, sdaz, ricompensa, sdRic, re, tr, states, ql_IS, ql_TW, dati = run(n = NUMIT, test = True)
         np.savez(f'./Desktop/ennesima/azioni{_}', azioni_med) 

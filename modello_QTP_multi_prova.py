@@ -30,20 +30,20 @@ in_features = 4
 
 PERM_IMP = 0.001 #permament impact
 TEMP_IMP = 0.002 #temporary impact
-VOLA = 0.01#.00001 # volatilità
+VOLA = 0.001#1e-9#0.0001#0.001#0.01#1e-9#0.01#.00001 # volatilità
 INV = 100 # inventario
 PASSI = 10 #discretizzazione
 STEP = 100 # abbassa la epsilon ogni 100 azioni compiute
-NUMIT = 10_000 # traiettorie di train, quelle di test sono sempre la meta', il numero totale delle azioni compiute in train sarà NUMIT x PASSI
-MIN_P = 9.8  #prezzo minimo
-MAX_P = 10.2 #prezzo massimo
-LR = 0.001 # learning rate
-BATCH = 16 # batch size
+NUMIT = 2#10_000 # traiettorie di train, quelle di test sono sempre la meta', il numero totale delle azioni compiute in train sarà NUMIT x PASSI
+MIN_P = 9.8#9.8  #prezzo minimo
+MAX_P = 10.2#10.2 #prezzo massimo
+LR = 0.0001 # learning rate
+BATCH = 32 # batch size
 NUM_AGE = 2 # numero di agenti
-TRAIN_i_o = True # se True allora si allena, se False si testa
+TRAIN_i_o = True #True # se True allora si allena, se False si testa
 seed = 10002197
-#np.random.seed   (int(np.random.uniform(0, seed)))
-#torch.manual_seed(int(np.random.uniform(0, seed)))
+#np.random.seed   (seed)
+#torch.manual_seed(seed)
 
 class DQN(nn.Module):
     '''
@@ -351,7 +351,7 @@ class Agente():
         entropy = torch.mean(-torch.sum(F.softmax(current_Q, dim=1) * F.log_softmax(current_Q, dim=1), dim=1))
 
         target = torch.tensor(target, dtype=torch.float32).reshape(-1,1)
-        loss = F.mse_loss(target, current_Q) - entropy
+        loss = F.mse_loss(target, current_Q)# - entropy
 
 
         self.optimizer.zero_grad()
@@ -378,6 +378,8 @@ class Agente():
         else:
             x = self.action(state, p_min, p_max)
 
+        xx = np.ones(10) * 10 #np.array([0, 0, 0 ,0,0,0,0,0, 0,100])#np.array([37.85320122, 32.04204306, 27.12300388, 22.95912711, 19.43448152,        16.45093344, 13.92541451, 11.7876089 ,  9.97799551,  8.44619085])/2
+        x = xx[tempo]
         reward = self.reward(inv, x, dati)
 
         new_inv = inv - x
@@ -453,7 +455,13 @@ if __name__ == '__main__':
                 dati = Ambiente(T = 1, sigma = VOLA, S0 = s_0, action = action).abm(numIt = 1).flatten()
                 p_min, p_max = MIN_P , MAX_P#dati.min(), dati.max()#
 
-                for agent_index in range(NUM_AGE):
+                if np.random.binomial(1, 0.5, 1)[0] == 0:
+                    agen =[0,1]
+                else:
+                    agen = [1,0]
+                    
+
+                for agent_index in agen:
 
                     loss, grad, state, epsilon, new_inv, action, reward = age[agent_index].step(inv[agent_index][i][j], tempo, dati, p_min, p_max)
                     inv[agent_index][i+1][j] = new_inv
@@ -473,7 +481,7 @@ if __name__ == '__main__':
         loss_mean, loss_sd = 0,0#doAve(loss_hist[0])
         rew_mean, rew_sd   = 0,0#doAve(rew_hist[0])
 
-        np.savez('./Desktop/ennesima/loss', np.asarray(loss_hist))
+        np.savez('C:/Users/macri/Desktop/ennesima/loss', np.asarray(loss_hist))
 
         return ( act_mean, act_sd, act_hist, loss_mean, loss_sd, rew_mean, rew_sd, loss_hist, rew_hist, state, epsilon)
     
@@ -495,16 +503,21 @@ if __name__ == '__main__':
         for j in tqdm(range(numIt)):
             slices = PASSI
             tempo = 0
-            s_0 = 10#np.random.uniform(9,11)#
+            s_0 = 10#np.random.uniform(9.5,10.5)#
             action = 0
+            xx = np.ones(10) * 10#np.array([100, 0, 0 ,0,0,0,0,0, 0,0])#np.array([37.85320122, 32.04204306, 27.12300388, 22.95912711, 19.43448152,       #16.45093344, 13.92541451, 11.7876089 ,  9.97799551,  8.44619085])
+            for i in tqdm(range(slices)):
 
-            for i in range(slices):
-
-                dati = Ambiente(T = 1, sigma = VOLA, S0 = s_0, action = action).abm(numIt = 1).flatten()
-
+                dati = Ambiente(T = 1, sigma = VOLA, S0 = s_0, action = xx[i]).abm(numIt = 1).flatten()
+                selling_strategy = []
                 p_min, p_max = MIN_P , MAX_P#dati.min(), dati.max()#
 
-                for agent_index in range(NUM_AGE):
+                if np.random.binomial(1, 0.5, 1)[0] == 0:
+                    agen =[0,1]
+                else:
+                    agen = [1,0]
+                    
+                for agent_index in agen:
 
                     (new_inv, x, reward) = age[agent_index].test(inv[agent_index][i][j], tempo, dati, p_min, p_max)
                     inv[agent_index][i+1][j] = new_inv
@@ -549,16 +562,16 @@ if __name__ == '__main__':
     def run(n, train = True, test = False):
 
         numIt = n
-        numTr = int(numIt * 0.5)
+        numTr = 2_500#int(numIt * 0.5)
         age = [Agente(inventario = INV, numTrain = numIt, age = _) for _ in range(NUM_AGE)]
         epsilon = 0
 
         if train == TRAIN_i_o:
             act_mean, act_sd, act_hist, loss_mean, loss_sd, rew_mean, rew_sd, loss_hist, rew_hist, state, epsilon = doTrain(age, numIt)
 
-            np.savez('./Desktop/ennesima/azioniTrain', act_hist) 
+            np.savez('C:/Users/macri/Desktop//ennesima/azioniTrain', act_hist) 
 
-            np.savez('./Desktop/ennesima/stati_train', state)
+            np.savez('C:/Users/macri/Desktop//ennesima/stati_train', state)
 
             torch.save(age[0].main_net.state_dict(), f'C:/Users/macri/Desktop/ennesima/model_qts_multi_1_{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.pth')
             torch.save(age[1].main_net.state_dict(), f'C:/Users/macri/Desktop/ennesima/model_qts_multi_2_{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.pth')
@@ -624,8 +637,8 @@ if __name__ == '__main__':
     re_tot = []
 
     if TRAIN_i_o == True:
-        n = 1 
-    else: n = 1#0
+        n = 10
+    else: n = 10#0
 
     for _ in tqdm(range(n)):
 

@@ -1,0 +1,109 @@
+%--------------------
+% Packages
+% -------------------
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{mathptmx} % Use Times Font
+\usepackage[pdftex]{graphicx} % Required for including pictures
+\usepackage{geometry}
+\usepackage[english]{babel} % English translations
+ % Format links for PDF
+\usepackage{calc} % To reset the counter in the document after the title page
+\usepackage{enumitem} % Includes lists
+\usepackage{biblatex}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{xspace}
+\usepackage{lmodern}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{rotating}
+\usepackage{tikz}
+\usepackage{placeins}
+\usetikzlibrary{decorations}
+\usepackage{csquotes}
+\usepackage{caption}
+\usepackage{subcaption}
+\geometry{
+  top=1cm,
+  bottom=1.5cm,
+  left=2cm,
+  right=2cm,
+  % Other options you might need, e.g.,
+  % marginparwidth=2cm,
+  % headsep=0.5cm,
+}
+\usepackage[pdftex,linkcolor=black,pdfborder={0 0 0}]{hyperref}
+\usepackage{hyperref}
+\usepackage{cleveref}
+\usepackage{caption}
+\setlist[enumerate]{itemsep=0mm}
+%\usepackage{paralist}
+
+\newcommand{\Ex}{\mathbb{E}}
+\newcommand{\Q}{\mathbb{Q}}
+\newcommand{\tP}{\tilde{P}(t,T)}
+\newcommand{\oP}{\tilde{P}(0,T)}
+\newcommand{\sP}{\tilde{P}(s,T)}
+\newcommand{\Emmett}[5]{% points, advance, rand factor, options, end label
+  \draw[#4] (0,-2)
+  \foreach \x in {1,...,#1}
+  {   -- ++(#2,rand*#3)
+  }
+  node[right] {#5};
+}
+\renewcommand{\Pr}{\mathbb{P}}
+\newcommand{\Dpel}{$\Delta P\&L\,\,$}
+\newcommand{\CIRpp}{$\text{CIR}_{++}$}
+\DeclareMathOperator*{\argmax}{arg\,max}
+\DeclareMathOperator*{\argmin}{arg\,min}
+\DeclareMathOperator*{\sign}{sign}
+
+
+\addbibresource{bib.bib}
+
+%-----------------------
+% Set pdf information and add title, fill in the fields
+%-----------------------
+\hypersetup{
+  pdfsubject = {OptimalExecutionDDQN},
+  pdftitle = {DDQNOptimalExecution},
+  pdfauthor = {Andrea Macrì}
+}
+
+%-----------------------
+% Begin document
+%-----------------------
+\begin{document}
+
+\title{Multiagent RL Optimal Execution}
+\author{Andrea Macrì, Fabrizio Lillo\\
+Scuola Normale Superiore}
+\date{\today}
+\maketitle
+\begin{abstract}
+Optimal Execution with two agents.
+\end{abstract}
+\tableofcontents
+\section{Introduction}
+In this paper we will consider the problem of optimal execution in a simple market environment with \emph{two agents}. The agents aim at liquidating an initial inventory $q_0$ of stocks $S$ over $N$ steps within a time window $[0, T]$.
+The problem, in its single agent formulation, has been at the center of a lively stream of research. In fact, starting from the seminal works of Almgren and Chriss~\cite{almgren} and Bertsimas and Lo~\cite{bertsimas}, 
+many other contributions have expanded on the problem and proposed different solutions, either by changing the market impact functional form or by considering other market features, notable contributions in this area are Gu´eant and Lehalle (2015); Gueant, Lehalle, and
+Fernandez-Tapia (2012); Cartea and Jaimungal (2016); Casgrain and Jaimungal (2019); Cartea, Jaimungal, and Penalva (2015); Bouchaud, Farmer, and Lillo (2009); Bouchaud et al. (2003); Gatheral, Schied, and Slynko (2012); Obizhaeva and Wang (2013).  
+
+One interesting approach is to use reinforcement learning (RL), where the agent learns the optimal strategy by interacting with the environment. 
+For example, Ning, Lin, and Jaimungal (2021) used a Double Deep Q-network to find the best execution schedule in a market with temporary impact using real stock data. Jeong and Kim (2019) developed a trading strategy for various 
+stock indexes using a Deep Q-network. Dab´erius, Granat, and Karlsson (2019) compared the performance of DDQN and Proximal Policy Optimization (PPO) algorithms on artificial data and found that both outperformed the TWAP 
+strategy in suboptimal scenarios and performed similarly to a slice-and-dice strategy in optimal scenarios. Finally, Macrì and Lillo (2024) used DDQN to show how RL is empirically able to learn optimal trading policies when liquidity 
+is time-varying.\par
+
+\section{Model}
+In this paper we will consider the problem of optimal execution in a simple market environment with \emph{two agents}. The agents aim at liquidating an initial inventory $q_0$ of stocks $S$ over $N$ steps within a time window $[0, T]$.
+We divide the time window $[0,T]$ into $N$ time-steps such that: $t = 1, \dots, N$ and $\Delta t = T/N$. The price of the stock at time $t$ is denoted by $P_t$. The agents can only trade at the mid-price $P_t$ and the market impact is modeled as a linear function of the trading rate. The market impact is given by:
+
+\subsection{Market Model}
+
+\end{document}
+
